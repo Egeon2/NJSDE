@@ -40,7 +40,7 @@ if not args.debug:
 
 
 def objective(trial):
-    # Подбор гиперпараметров
+    
     dim_c, dim_h, dim_N, dt, tspan = 5, 5, 1, 0.05, (0.0, 100.0)
     dim_hidden = trial.suggest_int('dim_hidden', 10, 100)
     num_hidden = trial.suggest_int('num_hidden', 0, 5)
@@ -67,7 +67,7 @@ def objective(trial):
         lmbda_te_real = self_inhibiting_lmbda(tspan[0], tspan[1], dt, 0.5, 0.2, TSTE, args.evnt_align)
 
 
-    # Инициализация / загрузка модели
+    
     func = ODEJumpFunc(dim_c, dim_h, dim_N, dim_N, dim_hidden=dim_hidden, num_hidden=num_hidden, ortho=True, jump_type=args.jump_type, evnt_align=args.evnt_align, activation=nn.CELU())
     c0 = torch.randn(dim_c, requires_grad=True)
     h0 = torch.zeros(dim_h)
@@ -87,7 +87,7 @@ def objective(trial):
     loss_meter = RunningAverageMeter()
     it = it0
 
-    # Обучение
+    
     if func.jump_type == "read":
         while it < args.niters:
             optimizer.zero_grad()
@@ -103,21 +103,21 @@ def objective(trial):
             optimizer.step()
             it += 1
 
-            # Валидация и визуализация
+            
             if it % args.nsave == 0:
-                # Используем полный набор данных для валидации
+                
                 tsave, trace, lmbda, gtid, tsne, loss, mete = forward_pass(func, torch.cat((c0, h0), dim=-1), tspan, dt, TSVA, args.evnt_align)
 
                 func.backtrace.clear()
                 loss.backward()
                 print("iter: {}, validation loss: {:10.4f}, type error: {}".format(it, loss.item()/len(TSVA), mete), flush=True)
 
-                # Визуализация результатов валидации
+                
                 tsave_ = torch.tensor([record[0] for record in reversed(func.backtrace)])
                 trace_ = torch.stack(tuple(record[1] for record in reversed(func.backtrace)))
                 visualize(outpath, tsave, trace, lmbda, tsave_, trace_, tsave[gtid], lmbda_va_real, tsne, range(len(TSVA)), it)
 
-                # Сохранение модели
+                
                 torch.save({'func_state_dict': func.state_dict(), 'c0': c0, 'h0': h0, 'it0': it, 'optimizer_state_dict': optimizer.state_dict()}, outpath + '/' + args.paramw)
 
     # Оценка на тестовых данных после завершения обучения
@@ -125,16 +125,16 @@ def objective(trial):
     visualize(outpath, tsave, trace, lmbda, None, None, tsave[gtid], lmbda_te_real, tsne, range(len(TSTE)), it, appendix="testing")
     print("iter: {}, testing loss: {:10.4f}, type error: {}".format(it, loss.item()/len(TSTE), mete), flush=True)
 
-    # Возвращаем значение потерь для Optune
+    
     return loss_meter.avg
 
 
 if __name__ == '__main__':
-    # Создание объекта Optune для оптимизации
+    
     study = optuna.create_study(direction='minimize')
-    study.optimize(objective, n_trials=50)  # n_trials определяет количество итераций оптимизации
+    study.optimize(objective, n_trials=50)  
 
-    # Печать лучших гиперпараметров, найденных Optune
+    
     print("Best trial:")
     trial = study.best_trial
     print(f"  Value: {trial.value}")
